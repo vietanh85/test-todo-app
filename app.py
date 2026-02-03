@@ -1,5 +1,6 @@
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
@@ -35,6 +36,14 @@ app = FastAPI(
     version="1.0.0",
     description="A production-ready Todo API with SQLite persistence",
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -99,8 +108,7 @@ async def create_todo(todo: TodoCreate):
             title=todo.title,
             description=todo.description,
             completed=todo.completed,
-            created_at=current_time,
-            updated_at=current_time
+            created_at=current_time
         )
         
         async with db.session() as session:
@@ -142,8 +150,6 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate):
             
             for field, value in todo_update.model_dump(exclude_unset=True).items():
                 setattr(todo, field, value)
-            
-            todo.updated_at = datetime.now()
             
             await session.commit()
             await session.refresh(todo)
@@ -236,7 +242,8 @@ async def health_check():
     """Health check endpoint"""
     try:
         async with db.session() as session:
-            await session.execute(select(TodoDB).limit(1)).scalar_one_or_none()
+            result = await session.execute(select(TodoDB).limit(1))
+            result.scalar_one_or_none()
         return {"status": "healthy", "database": "connected", "timestamp": datetime.now()}
     except SQLAlchemyError as e:
         logger.error(f"Health check failed: {e}")
