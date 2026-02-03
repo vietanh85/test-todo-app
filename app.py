@@ -52,7 +52,7 @@ async def root():
 async def get_todos():
     """Get all todos"""
     try:
-        async with db.get_session()() as session:
+        async with db.session() as session:
             result = await session.execute(select(TodoDB).order_by(TodoDB.created_at.desc()))
             todos = result.scalars().all()
             return [Todo.model_validate(todo) for todo in todos]
@@ -68,7 +68,7 @@ async def get_todos():
 async def get_todo(todo_id: int):
     """Get a specific todo by ID"""
     try:
-        async with db.get_session()() as session:
+        async with db.session() as session:
             result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
             todo = result.scalar_one_or_none()
             
@@ -103,7 +103,7 @@ async def create_todo(todo: TodoCreate):
             updated_at=current_time
         )
         
-        async with db.get_session()() as session:
+        async with db.session() as session:
             session.add(new_todo)
             await session.commit()
             await session.refresh(new_todo)
@@ -129,7 +129,7 @@ async def create_todo(todo: TodoCreate):
 async def update_todo(todo_id: int, todo_update: TodoUpdate):
     """Update an existing todo"""
     try:
-        async with db.get_session()() as session:
+        async with db.session() as session:
             # Get existing todo
             result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
             todo = result.scalar_one_or_none()
@@ -140,15 +140,8 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate):
                     detail=f"Todo with id {todo_id} not found"
                 )
             
-            # Update fields explicitly to avoid setattr issues
-            update_data = todo_update.model_dump(exclude_unset=True)
-            
-            if 'title' in update_data and update_data['title'] is not None:
-                todo.title = update_data['title']
-            if 'description' in update_data and update_data['description'] is not None:
-                todo.description = update_data['description']
-            if 'completed' in update_data and update_data['completed'] is not None:
-                todo.completed = update_data['completed']
+            for field, value in todo_update.model_dump(exclude_unset=True).items():
+                setattr(todo, field, value)
             
             todo.updated_at = datetime.now()
             
@@ -178,19 +171,15 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate):
 async def delete_todo(todo_id: int):
     """Delete a todo"""
     try:
-        async with db.get_session()() as session:
-            # Check if todo exists
-            result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
-            todo = result.scalar_one_or_none()
+        async with db.session() as session:
+            result = await session.execute(delete(TodoDB).where(TodoDB.id == todo_id))
             
-            if not todo:
+            if result.rowcount == 0:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Todo with id {todo_id} not found"
                 )
             
-            # Delete the todo
-            await session.execute(delete(TodoDB).where(TodoDB.id == todo_id))
             await session.commit()
             logger.info(f"Deleted todo with id: {todo_id}")
             
@@ -210,7 +199,7 @@ async def delete_todo(todo_id: int):
 async def get_completed_todos():
     """Get all completed todos"""
     try:
-        async with db.get_session()() as session:
+        async with db.session() as session:
             result = await session.execute(
                 select(TodoDB).where(TodoDB.completed == True).order_by(TodoDB.updated_at.desc())
             )
@@ -228,7 +217,7 @@ async def get_completed_todos():
 async def get_active_todos():
     """Get all active (incomplete) todos"""
     try:
-        async with db.get_session()() as session:
+        async with db.session() as session:
             result = await session.execute(
                 select(TodoDB).where(TodoDB.completed == False).order_by(TodoDB.created_at.desc())
             )
@@ -245,4 +234,13 @@ async def get_active_todos():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now()}
+    try:
+        async with db.session() as session:
+            await session.execute(select(TodoDB).limit(1))
+        return {"status": "healthy", "database": "connected", "timestamp": datetime.now()}
+    except SQLAlchemyError as e:
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service unhealthy"
+        )

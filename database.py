@@ -1,14 +1,15 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+import os
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from datetime import datetime
+from typing import AsyncGenerator
 import logging
 
 logger = logging.getLogger(__name__)
 
 DATABASE_URL = "sqlite+aiosqlite:///./todos.db"
+DB_ECHO = os.getenv("DB_ECHO", "false").lower() in ("true", "1", "t")
 
 Base = declarative_base()
 
@@ -26,7 +27,7 @@ class TodoDB(Base):
 
 class Database:
     def __init__(self):
-        self.engine = create_async_engine(DATABASE_URL, echo=True)
+        self.engine = create_async_engine(DATABASE_URL, echo=DB_ECHO)
         self.async_session = async_sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
@@ -41,9 +42,9 @@ class Database:
             logger.error(f"Failed to create database tables: {e}")
             raise
     
-    def get_session(self) -> async_sessionmaker[AsyncSession]:
-        """Get async database session factory"""
-        return self.async_session
+    def session(self) -> AsyncSession:
+        """Get async database session"""
+        return self.async_session()
 
 
 # Global database instance
