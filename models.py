@@ -1,28 +1,45 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
 class TodoBase(BaseModel):
-    title: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = Field(None, max_length=500)
-    completed: bool = False
+    """Base model for Todo with common fields"""
+    title: str = Field(..., min_length=1, max_length=200, description="Title of the todo item")
+    description: Optional[str] = Field(None, max_length=500, description="Optional description")
+    completed: bool = Field(False, description="Completion status")
+    
+    @field_validator('title')
+    @classmethod
+    def title_must_not_be_empty(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Title cannot be empty')
+        return v.strip()
 
 
 class TodoCreate(TodoBase):
+    """Model for creating a new todo"""
     pass
 
 
 class TodoUpdate(BaseModel):
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = Field(None, max_length=500)
-    completed: Optional[bool] = None
+    """Model for updating an existing todo"""
+    title: Optional[str] = Field(None, min_length=1, max_length=200, description="Updated title")
+    description: Optional[str] = Field(None, max_length=500, description="Updated description")
+    completed: Optional[bool] = Field(None, description="Updated completion status")
+    
+    @field_validator('title')
+    @classmethod
+    def title_must_not_be_empty_if_provided(cls, v):
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Title cannot be empty')
+        return v.strip() if v else v
 
 
 class Todo(TodoBase):
-    id: int
-    created_at: datetime
-    updated_at: datetime
+    """Model for todo response with database fields"""
+    id: int = Field(..., description="Unique identifier")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
