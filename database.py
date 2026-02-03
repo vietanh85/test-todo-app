@@ -3,7 +3,6 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from datetime import datetime
-from typing import AsyncGenerator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,7 +42,7 @@ class Database:
             raise
     
     def session(self) -> AsyncSession:
-        """Get async database session"""
+        """Get async database session for use as async context manager"""
         return self.async_session()
 
 

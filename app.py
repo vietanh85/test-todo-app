@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status
 from datetime import datetime
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
@@ -236,7 +236,7 @@ async def health_check():
     """Health check endpoint"""
     try:
         async with db.session() as session:
-            await session.execute(select(TodoDB).limit(1))
+            await session.execute(select(TodoDB).limit(1)).scalar_one_or_none()
         return {"status": "healthy", "database": "connected", "timestamp": datetime.now()}
     except SQLAlchemyError as e:
         logger.error(f"Health check failed: {e}")
