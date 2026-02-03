@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from sqlalchemy import select, delete
@@ -11,22 +11,13 @@ from contextlib import asynccontextmanager
 import os
 import asyncio
 
-try:
-    from slowapi import Limiter, _rate_limit_exceeded_handler
-    from slowapi.util import get_remote_address
-    from slowapi.errors import RateLimitExceeded
-    SLOWAPI_AVAILABLE = True
-except ImportError:
-    SLOWAPI_AVAILABLE = False
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",") if os.getenv("CORS_ORIGINS") else ["*"]
-if CORS_ORIGINS != ["*"]:
-    CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS]
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+CORS_ORIGINS = [o.strip() for o in CORS_ORIGINS if o.strip()] or ["*"]
 
 
 def validate_todo_id(todo_id: int) -> None:
@@ -36,16 +27,6 @@ def validate_todo_id(todo_id: int) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid todo_id: must be a positive integer"
         )
-
-
-# Rate limiting configuration
-RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() in ("true", "1", "t") and SLOWAPI_AVAILABLE
-RATE_LIMIT = os.getenv("RATE_LIMIT", "100/minute")
-
-if RATE_LIMIT_ENABLED:
-    limiter = Limiter(key_func=get_remote_address)
-else:
-    limiter = None
 
 
 @asynccontextmanager
@@ -72,10 +53,6 @@ app = FastAPI(
     description="A production-ready Todo API with SQLite persistence",
     lifespan=lifespan
 )
-
-if limiter:
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -222,14 +199,18 @@ async def delete_todo(todo_id: int):
     validate_todo_id(todo_id)
     try:
         async with db.session() as session:
-            result = await session.execute(delete(TodoDB).where(TodoDB.id == todo_id))
+            result = await session.execute(
+                select(TodoDB).where(TodoDB.id == todo_id).with_for_update()
+            )
+            todo = result.scalar_one_or_none()
             
-            if result.rowcount == 0:
+            if not todo:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Todo with id {todo_id} not found"
                 )
             
+            await session.delete(todo)
             await session.commit()
             logger.info(f"Deleted todo with id: {todo_id}")
             

@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from datetime import datetime
@@ -26,7 +26,11 @@ class TodoDB(Base):
 
 class Database:
     def __init__(self):
-        self.engine = create_async_engine(DATABASE_URL, echo=DB_ECHO)
+        self.engine = create_async_engine(
+            DATABASE_URL, 
+            echo=DB_ECHO, 
+            connect_args={"check_same_thread": False}
+        )
         self.async_session = async_sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
@@ -36,6 +40,7 @@ class Database:
         try:
             async with self.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+                await conn.execute(text("PRAGMA journal_mode=WAL"))
             logger.info("Database tables created successfully")
         except Exception as e:
             logger.error(f"Failed to create database tables: {e}")
