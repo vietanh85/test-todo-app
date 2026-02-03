@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from sqlalchemy import select, delete
@@ -8,10 +8,44 @@ from models import Todo, TodoCreate, TodoUpdate
 from database import db, TodoDB
 import logging
 from contextlib import asynccontextmanager
+import os
+import asyncio
+
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    SLOWAPI_AVAILABLE = True
+except ImportError:
+    SLOWAPI_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configuration
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",") if os.getenv("CORS_ORIGINS") else ["*"]
+if CORS_ORIGINS != ["*"]:
+    CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS]
+
+
+def validate_todo_id(todo_id: int) -> None:
+    """Validate that todo_id is a positive integer"""
+    if todo_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid todo_id: must be a positive integer"
+        )
+
+
+# Rate limiting configuration
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() in ("true", "1", "t") and SLOWAPI_AVAILABLE
+RATE_LIMIT = os.getenv("RATE_LIMIT", "100/minute")
+
+if RATE_LIMIT_ENABLED:
+    limiter = Limiter(key_func=get_remote_address)
+else:
+    limiter = None
 
 
 @asynccontextmanager
@@ -29,6 +63,7 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Application shutting down")
+    await db.dispose()
 
 
 app = FastAPI(
@@ -38,10 +73,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+if limiter:
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=CORS_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -76,6 +115,7 @@ async def get_todos():
 @app.get("/todos/{todo_id}", response_model=Todo)
 async def get_todo(todo_id: int):
     """Get a specific todo by ID"""
+    validate_todo_id(todo_id)
     try:
         async with db.session() as session:
             result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
@@ -136,10 +176,13 @@ async def create_todo(todo: TodoCreate):
 @app.put("/todos/{todo_id}", response_model=Todo)
 async def update_todo(todo_id: int, todo_update: TodoUpdate):
     """Update an existing todo"""
+    validate_todo_id(todo_id)
     try:
         async with db.session() as session:
-            # Get existing todo
-            result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
+            # Get existing todo with row lock to prevent race conditions
+            result = await session.execute(
+                select(TodoDB).where(TodoDB.id == todo_id).with_for_update()
+            )
             todo = result.scalar_one_or_none()
             
             if not todo:
@@ -176,6 +219,7 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate):
 @app.delete("/todos/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_todo(todo_id: int):
     """Delete a todo"""
+    validate_todo_id(todo_id)
     try:
         async with db.session() as session:
             result = await session.execute(delete(TodoDB).where(TodoDB.id == todo_id))
@@ -239,12 +283,19 @@ async def get_active_todos():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with database connection timeout"""
     try:
-        async with db.session() as session:
-            result = await session.execute(select(TodoDB).limit(1))
-            result.scalar_one_or_none()
+        async with asyncio.timeout(5.0):
+            async with db.session() as session:
+                result = await session.execute(select(TodoDB).limit(1))
+                result.scalar_one_or_none()
         return {"status": "healthy", "database": "connected", "timestamp": datetime.now()}
+    except TimeoutError:
+        logger.error("Health check failed: database query timeout")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database query timeout"
+        )
     except SQLAlchemyError as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(

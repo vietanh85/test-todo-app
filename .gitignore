@@ -97,6 +97,8 @@ coverage/
 .nyc_output/
 test-results/
 playwright-report/
+.ruff_cache/
+.mypy_cache/
 
 # =============================================================================
 # Database

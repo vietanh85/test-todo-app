@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = "sqlite+aiosqlite:///./todos.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./todos.db")
 DB_ECHO = os.getenv("DB_ECHO", "false").lower() in ("true", "1", "t")
 
 Base = declarative_base()
@@ -39,6 +39,15 @@ class Database:
             logger.info("Database tables created successfully")
         except Exception as e:
             logger.error(f"Failed to create database tables: {e}")
+            raise
+    
+    async def dispose(self):
+        """Dispose of the database engine"""
+        try:
+            await self.engine.dispose()
+            logger.info("Database engine disposed successfully")
+        except Exception as e:
+            logger.error(f"Failed to dispose database engine: {e}")
             raise
     
     def session(self) -> AsyncSession:
