@@ -28,6 +28,7 @@ export const TodoItem: React.FC<TodoItemProps> = ({ todo }) => {
       <div className="flex items-center space-x-3 overflow-hidden">
         <button
           onClick={toggleComplete}
+          aria-label={todo.completed ? "Mark as incomplete" : "Mark as complete"}
           className={cn(
             "flex-shrink-0 transition-colors",
             todo.completed ? "text-green-500" : "text-slate-400 hover:text-blue-500"
@@ -56,6 +57,7 @@ export const TodoItem: React.FC<TodoItemProps> = ({ todo }) => {
         variant="ghost"
         size="icon"
         onClick={handleDelete}
+        aria-label="Delete todo"
         className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity"
       >
         <Trash2 className="w-4 h-4" />
