@@ -48,7 +48,31 @@ Default: `http://localhost:8000`
 - **Purpose**: Delete a todo.
 - **Success Response**: 204 No Content
 
-### 5. GET /health
+### 6. POST /api/auth/login
+- **Purpose**: Authenticate user and return session token.
+- **Payload**:
+  ```json
+  {
+    "email": "string",
+    "password": "string"
+  }
+  ```
+- **Success Response**: 200 OK
+  ```json
+  {
+    "token": "JWT_TOKEN_STRING",
+    "user": {
+      "id": "integer",
+      "email": "string"
+    }
+  }
+  ```
+
+### 7. POST /api/auth/logout
+- **Purpose**: Invalidate current session.
+- **Success Response**: 200 OK
+
+### 8. GET /health
 - **Purpose**: Verify backend availability on frontend startup.
 
 ## Security Considerations
