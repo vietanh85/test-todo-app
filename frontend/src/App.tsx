@@ -2,21 +2,30 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTodos } from './hooks/useTodos';
 import { TodoItem } from './components/TodoItem';
 import { AddTodoForm } from './components/AddTodoForm';
-import { Loader2, ListTodo } from 'lucide-react';
+import { LoginPage } from './components/LoginPage';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Button } from './components/ui/Button';
+import { Loader2, ListTodo, LogOut } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
 function TodoApp() {
   const { data: todos, isLoading, isError, error } = useTodos();
+  const { logout } = useAuth();
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
-        <div className="flex items-center justify-center mb-8 gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <ListTodo className="w-8 h-8 text-white" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2 rounded-lg">
+              <ListTodo className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Todo App</h1>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Todo App</h1>
+          <Button variant="ghost" size="icon" onClick={logout} title="Logout">
+            <LogOut className="w-5 h-5 text-slate-500" />
+          </Button>
         </div>
 
         <div className="space-y-6">
@@ -47,10 +56,30 @@ function TodoApp() {
   );
 }
 
+function Main() {
+  const { token, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (!token) {
+    return <LoginPage />;
+  }
+
+  return <TodoApp />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TodoApp />
+      <AuthProvider>
+        <Main />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
