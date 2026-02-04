@@ -11,37 +11,44 @@
 
 ## Data Flow Diagram
 
-1. **Initialization**:
+1. **Authentication**:
+   - User submits credentials via `LoginForm`.
+   - Frontend sends `POST /api/auth/login`.
+   - Backend validates credentials and returns a JWT.
+   - Frontend stores JWT and updates `AuthContext`.
+
+2. **Initialization**:
    - Browser loads React application.
-   - `useTodos` hook triggers `GET /todos`.
-   - Backend queries SQLite and returns JSON list.
+   - `AuthProvider` checks for existing token in storage.
+   - If authenticated, `useTodos` hook triggers `GET /todos` with `Authorization` header.
+   - Backend verifies JWT, extracts user ID, and queries SQLite for user-specific todos.
    - React renders the list.
 
-2. **Creating a Todo**:
+3. **Creating a Todo**:
    - User types in `AddTodoForm` and submits.
    - Frontend validates input via Zod.
-   - `useCreateTodo` mutation sends `POST /todos`.
-   - Backend persists to DB and returns the new object.
+   - `useCreateTodo` mutation sends `POST /todos` with user's JWT.
+   - Backend persists to DB (linked to user ID) and returns the new object.
    - Frontend cache is invalidated; list re-fetches.
 
-3. **Updating a Todo**:
+4. **Updating a Todo**:
    - User clicks checkbox on `TodoItem`.
-   - Frontend optimistic update (optional) or immediate mutation.
-   - `PUT /todos/{id}` sent with `completed: !current_status`.
-   - Backend updates DB and returns updated object.
+   - `PUT /todos/{id}` sent with `completed: !current_status` and JWT.
+   - Backend verifies ownership of the todo and updates DB.
 
 ## Component Interconnection
 
 ```text
 App
- └── QueryClientProvider
-      └── Layout
-           ├── Header
-           └── Dashboard
-                ├── Stats (Aggregates data from useTodos)
-                ├── AddTodoForm (Uses useCreateTodo)
-                └── TodoList
-                     └── TodoItem (Uses useUpdateTodo, useDeleteTodo)
+ └── AuthProvider (Manages JWT and User State)
+      └── QueryClientProvider
+           └── Layout
+                ├── Header (Login/Logout buttons)
+                └── Dashboard (Protected Content)
+                     ├── Stats
+                     ├── AddTodoForm
+                     └── TodoList
+                          └── TodoItem
 ```
 
 ## Deployment Strategy

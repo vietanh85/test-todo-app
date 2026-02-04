@@ -29,6 +29,12 @@ The frontend will follow a modular architecture:
 *   `src/hooks`: Custom React hooks for logic reuse.
 *   `src/types`: TypeScript interfaces and types.
 *   `src/lib`: Utility functions and configurations (e.g., axios instance).
+*   `src/contexts`: React Contexts for global state (e.g., `AuthContext`).
+
+## Authentication Flow
+We use JWT-based authentication. The `AuthContext` provides the current user's state and methods for logging in/out. An Axios interceptor is configured in `src/lib/axios.ts` to:
+1.  Attach the `Authorization: Bearer <token>` header if a token exists in `localStorage`.
+2.  Handle `401 Unauthorized` responses by clearing the local session and redirecting to the login page.
 
 ## Consequences
 *   **Pros**:

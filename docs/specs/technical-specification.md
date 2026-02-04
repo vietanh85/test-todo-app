@@ -6,8 +6,11 @@ This document outlines the technical implementation details for the Todo applica
 ## 2. Component Hierarchy
 The application will be composed of the following main components:
 
-- `App`: Root component containing providers (QueryClient, ThemeProvider).
+- `App`: Root component containing providers (`AuthProvider`, `QueryClient`, `ThemeProvider`).
+- `LoginPage`: Form for user authentication.
+- `AuthGuard`: Wrapper component to protect routes.
 - `Layout`: Main wrapper with header and navigation.
+    - `UserMenu`: Displays user info and "Logout" button.
 - `Dashboard`: Main view containing:
     - `TodoStats`: Summary of active and completed tasks.
     - `AddTodoForm`: Input field and button to create new todos.
@@ -16,21 +19,23 @@ The application will be composed of the following main components:
     - `TodoFilters`: Tabs to switch between "All", "Active", and "Completed".
 
 ## 3. State Management
+### Auth State (Context API)
+- `useAuth()`: Hook to access user object, login/logout functions, and loading state.
+
 ### Server State (TanStack Query)
-- `useTodos()`: Fetch all todos.
-- `useCreateTodo()`: Mutation to add a new todo.
+- `useLogin()`: Mutation to perform authentication.
+- `useTodos()`: Fetch user-specific todos (requires auth).
+- `useCreateTodo()`: Mutation to add a new todo (requires auth).
 - `useUpdateTodo()`: Mutation to toggle completion or edit title/description.
 - `useDeleteTodo()`: Mutation to remove a todo.
 
-### Client State
-- UI state (e.g., current filter, theme) will be managed using React `useState` or a lightweight store like `Zustand` if complexity increases.
-
 ## 4. Data Flow
-1. User interacts with UI (e.g., clicks "Complete").
-2. Component triggers a mutation via React Query.
-3. React Query sends a PUT request to the backend.
-4. On success, React Query invalidates the `todos` cache.
-5. UI automatically re-refetches and updates with the latest data.
+1. User interacts with UI (e.g., submits Login form).
+2. `useLogin` mutation is triggered.
+3. On success, JWT is stored in `localStorage` and `AuthContext` is updated.
+4. User is redirected to `Dashboard`.
+5. Subsequent API calls automatically include the `Authorization: Bearer <token>` header via an Axios interceptor.
+6. On 401 response, `AuthContext` clears token and redirects to `/login`.
 
 ## 5. Error Handling
 - Global error boundary to catch unexpected crashes.
