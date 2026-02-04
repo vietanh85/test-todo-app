@@ -89,32 +89,6 @@ async def get_todos():
         )
 
 
-@app.get("/todos/{todo_id}", response_model=Todo)
-async def get_todo(todo_id: int):
-    """Get a specific todo by ID"""
-    validate_todo_id(todo_id)
-    try:
-        async with db.session() as session:
-            result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
-            todo = result.scalar_one_or_none()
-            
-            if not todo:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Todo with id {todo_id} not found"
-                )
-            
-            return Todo.model_validate(todo)
-    except HTTPException:
-        raise
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_todo: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve todo"
-        )
-
-
 @app.post("/todos", response_model=Todo, status_code=status.HTTP_201_CREATED)
 async def create_todo(todo: TodoCreate):
     """Create a new todo"""
@@ -147,6 +121,71 @@ async def create_todo(todo: TodoCreate):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create todo"
+        )
+
+
+# IMPORTANT: Specific paths must be defined before dynamic paths (like /{todo_id})
+# to ensure correct route matching.
+
+@app.get("/todos/completed", response_model=List[Todo])
+async def get_completed_todos():
+    """Get all completed todos"""
+    try:
+        async with db.session() as session:
+            result = await session.execute(
+                select(TodoDB).where(TodoDB.completed == True).order_by(TodoDB.updated_at.desc())
+            )
+            todos = result.scalars().all()
+            return [Todo.model_validate(todo) for todo in todos]
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_completed_todos: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve completed todos"
+        )
+
+
+@app.get("/todos/active", response_model=List[Todo])
+async def get_active_todos():
+    """Get all active (incomplete) todos"""
+    try:
+        async with db.session() as session:
+            result = await session.execute(
+                select(TodoDB).where(TodoDB.completed == False).order_by(TodoDB.created_at.desc())
+            )
+            todos = result.scalars().all()
+            return [Todo.model_validate(todo) for todo in todos]
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_active_todos: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve active todos"
+        )
+
+
+@app.get("/todos/{todo_id}", response_model=Todo)
+async def get_todo(todo_id: int):
+    """Get a specific todo by ID"""
+    validate_todo_id(todo_id)
+    try:
+        async with db.session() as session:
+            result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
+            todo = result.scalar_one_or_none()
+            
+            if not todo:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Todo with id {todo_id} not found"
+                )
+            
+            return Todo.model_validate(todo)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_todo: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve todo"
         )
 
 
@@ -223,42 +262,6 @@ async def delete_todo(todo_id: int):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete todo"
-        )
-
-
-@app.get("/todos/completed", response_model=List[Todo])
-async def get_completed_todos():
-    """Get all completed todos"""
-    try:
-        async with db.session() as session:
-            result = await session.execute(
-                select(TodoDB).where(TodoDB.completed == True).order_by(TodoDB.updated_at.desc())
-            )
-            todos = result.scalars().all()
-            return [Todo.model_validate(todo) for todo in todos]
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_completed_todos: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve completed todos"
-        )
-
-
-@app.get("/todos/active", response_model=List[Todo])
-async def get_active_todos():
-    """Get all active (incomplete) todos"""
-    try:
-        async with db.session() as session:
-            result = await session.execute(
-                select(TodoDB).where(TodoDB.completed == False).order_by(TodoDB.created_at.desc())
-            )
-            todos = result.scalars().all()
-            return [Todo.model_validate(todo) for todo in todos]
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_active_todos: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve active todos"
         )
 
 

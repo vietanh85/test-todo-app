@@ -1,6 +1,6 @@
 import os
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from datetime import datetime
 import logging
