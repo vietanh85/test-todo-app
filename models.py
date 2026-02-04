@@ -3,6 +3,35 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
+class UserBase(BaseModel):
+    email: str = Field(..., description="User email")
+
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, description="User password")
+
+
+class User(UserBase):
+    id: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 class TodoBase(BaseModel):
     """Base model for Todo with common fields"""
     title: str = Field(..., min_length=1, max_length=200, description="Title of the todo item")

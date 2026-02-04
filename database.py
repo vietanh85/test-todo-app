@@ -13,6 +13,15 @@ DB_ECHO = os.getenv("DB_ECHO", "false").lower() in ("true", "1", "t")
 Base = declarative_base()
 
 
+class UserDB(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(200), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class TodoDB(Base):
     __tablename__ = "todos"
     
@@ -20,6 +29,7 @@ class TodoDB(Base):
     title = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)
     completed = Column(Boolean, default=False)
+    user_id = Column(Integer, index=True, nullable=True) # Linked to UserDB.id
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
