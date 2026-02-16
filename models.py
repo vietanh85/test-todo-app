@@ -3,6 +3,16 @@ from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
+class User(BaseModel):
+    """Model for user response"""
+    id: str = Field(..., description="Unique identifier from IdP")
+    email: str = Field(..., description="User's email address")
+    name: Optional[str] = Field(None, description="User's full name")
+    picture: Optional[str] = Field(None, description="URL to user's profile picture")
+
+    model_config = {"from_attributes": True}
+
+
 class TodoBase(BaseModel):
     """Base model for Todo with common fields"""
     title: str = Field(..., min_length=1, max_length=200, description="Title of the todo item")

@@ -13,10 +13,20 @@ DB_ECHO = os.getenv("DB_ECHO", "false").lower() in ("true", "1", "t")
 Base = declarative_base()
 
 
+class UserDB(Base):
+    __tablename__ = "users"
+    
+    id = Column(String(100), primary_key=True, index=True)  # sub claim from JWT
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    name = Column(String(255), nullable=True)
+    last_login = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 class TodoDB(Base):
     __tablename__ = "todos"
     
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(100), index=True, nullable=False)
     title = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)
     completed = Column(Boolean, default=False)
