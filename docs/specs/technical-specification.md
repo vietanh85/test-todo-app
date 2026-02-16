@@ -1,54 +1,45 @@
 # Technical Specification: SORA Frontend
 
 ## 1. Overview
-This document outlines the technical implementation for the SORA (Smart Office Routine Assistant) frontend.
+This document outlines the technical implementation details for the Todo application frontend.
 
-## 2. Core Feature Modules
+## 2. Component Hierarchy
+The application will be composed of the following main components:
 
-### 2.1 Morning Briefing (FR-001)
-- **View**: Dashboard card appearing at scheduled briefing time.
-- **Components**: `BriefingCard`, `WeatherWidget`, `CommuteStatus`.
-- **Data**: Aggregated from `/api/v1/briefing`.
+- `App`: Root component containing providers (QueryClient, ThemeProvider).
+- `Layout`: Main wrapper with header and navigation.
+- `Dashboard`: Main view containing:
+    - `TodoStats`: Summary of active and completed tasks.
+    - `AddTodoForm`: Input field and button to create new todos.
+    - `TodoList`: Container for the list of todos.
+        - `TodoItem`: Individual todo item with edit/delete/complete actions.
+    - `TodoFilters`: Tabs to switch between "All", "Active", and "Completed".
 
-### 2.2 Deep Work Shield (FR-002)
-- **View**: Persistent "Focus Status" indicator in the header.
-- **Components**: `FocusToggle`, `SessionTimer`.
-- **Logic**: Polls calendar gaps or receives WebSocket event to suggest Focus Mode.
+## 3. State Management
+### Server State (TanStack Query)
+- `useTodos()`: Fetch all todos.
+- `useCreateTodo()`: Mutation to add a new todo.
+- `useUpdateTodo()`: Mutation to toggle completion or edit title/description.
+- `useDeleteTodo()`: Mutation to remove a todo.
 
-### 2.3 Lunch Orchestrator (FR-003)
-- **View**: Modal or dedicated page for voting.
-- **Components**: `VoteOption`, `PollResults`, `GroupSelection`.
-- **Logic**: Real-time updates via WebSockets when team members vote.
+### Authentication State
+- `useAuth()`: Hook from OIDC provider to get authentication status, user profile, and tokens.
+- Protected Routes: Higher-order components or wrapper components to prevent access to the dashboard for unauthenticated users.
 
-### 2.4 Clean Slate Wrap-up (FR-004)
-- **View**: Full-screen guided wizard at 4:45 PM.
-- **Steps**:
-    1. Achievement Log (Text input).
-    2. Task Prioritization (Drag-and-drop list).
-    3. Ritual Completion (Confetti/Success animation).
+### Client State
+- UI state (e.g., current filter, theme) will be managed using React `useState` or a lightweight store like `Zustand` if complexity increases.
 
-## 3. Component Hierarchy (Revised)
-- `App`: Providers & Global Styles.
-- `Layout`: 
-    - `SideNav`: Quick access to Daily Log, Focus Settings, Team Lunch.
-    - `TopBar`: Focus Mode Status, Notifications, Profile.
-- `MainContent`:
-    - `Dashboard`: Widgets for Briefing, active Focus session, and upcoming meetings.
-    - `RitualWizard`: Multi-step container for Morning/Evening rituals.
+## 4. Data Flow
+1. User interacts with UI (e.g., clicks "Complete").
+2. Component triggers a mutation via React Query.
+3. React Query sends a PUT request to the backend.
+4. On success, React Query invalidates the `todos` cache.
+5. UI automatically re-refetches and updates with the latest data.
 
-## 4. State Management
-### 4.1 Server State (React Query)
-- `useBriefing()`: Daily summary data.
-- `useCalendarEvents()`: Fetching upcoming meetings.
-- `useTasks()`: Replacement for the old `useTodos`, integrated with Jira/Linear metadata.
-
-### 4.2 Local State (Zustand)
-- `useFocusStore`: Tracks if user is currently in Focus Mode.
-- `useNotificationStore`: Manages in-app alert queue.
-
-## 5. Integrations & Authentication
-- **Auth**: OAuth2 for Google/Microsoft (handled by backend, frontend stores token).
-- **Webhooks**: Frontend listens for Slack status change confirmations.
+## 5. Error Handling
+- Global error boundary to catch unexpected crashes.
+- Toast notifications (using `sonner` or `react-hot-toast`) for API errors and success confirmations.
+- Inline validation errors for the "Add Todo" form.
 
 ## 6. Responsive Design
 - **Desktop**: Primary interface with sidebar.

@@ -37,29 +37,64 @@ python main.py
 ```
 The API will be available at `http://localhost:8000`.
 
-### API Documentation
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+The API will be available at `http://localhost:8000`
 
----
+## Authentication
 
-## Frontend Setup (React)
+This API uses Single Sign-On (SSO) via OpenID Connect (OIDC). All protected endpoints require an `Authorization: Bearer <JWT>` header.
 
-The frontend is built with React, Vite, and Tailwind CSS, using TanStack Query for state management.
+### Configuration
 
-### Prerequisites
-- Node.js (v18+)
-- npm
+Copy `.env.example` to `.env` and configure your OIDC provider:
+
+```env
+OIDC_ISSUER=https://your-idp.com
+OIDC_AUDIENCE=your-client-id
+JWKS_URL=https://your-idp.com/.well-known/jwks.json
+```
+
+## API Endpoints
+
+### Base
+- `GET /` - API info
+- `GET /health` - Health check
+
+### Auth
+- `GET /auth/user` - Get current authenticated user information
+
+### Todo Operations (Authenticated)
+- `GET /todos` - Get current user's todos
+- `GET /todos/{id}` - Get a specific todo
+- `POST /todos` - Create a new todo for current user
+- `PUT /todos/{id}` - Update a todo
+- `DELETE /todos/{id}` - Delete a todo
+
+### Filtering (Authenticated)
+- `GET /todos/completed` - Get current user's completed todos
+- `GET /todos/active` - Get current user's active todos
+
+## Example Usage with Authentication
+
+### Create a todo
+```bash
+curl -X POST "http://localhost:8000/todos" \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -d '{"title": "Learn FastAPI", "description": "Complete the tutorial"}'
+```
 
 ### Installation
 ```bash
-cd frontend
-npm install
+curl "http://localhost:8000/todos" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### Running the Frontend
 ```bash
-npm run dev
+curl -X PUT "http://localhost:8000/todos/1" \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -d '{"completed": true}'
 ```
 The frontend will be available at `http://localhost:5173`.
 

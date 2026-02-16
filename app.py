@@ -1,11 +1,12 @@
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.exc import SQLAlchemyError
-from models import Todo, TodoCreate, TodoUpdate
+from models import Todo, TodoCreate, TodoUpdate, User, AuthUser
 from database import db, TodoDB
+from auth import get_current_user
 import logging
 from contextlib import asynccontextmanager
 import os
@@ -67,18 +68,33 @@ app.add_middleware(
 async def root():
     """Get API information"""
     return {
-        "message": "Simple Todo API", 
+        "message": "Simple Todo API with SSO", 
         "version": "1.0.0",
         "status": "operational"
     }
 
 
+@app.get("/auth/user", response_model=User)
+async def get_user_info(current_user: AuthUser = Depends(get_current_user)):
+    """Get current user information"""
+    return User(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        picture=current_user.picture
+    )
+
+
 @app.get("/todos", response_model=List[Todo])
-async def get_todos():
-    """Get all todos"""
+async def get_todos(current_user: AuthUser = Depends(get_current_user)):
+    """Get all todos for the current user"""
     try:
         async with db.session() as session:
-            result = await session.execute(select(TodoDB).order_by(TodoDB.created_at.desc()))
+            result = await session.execute(
+                select(TodoDB)
+                .where(TodoDB.user_id == current_user.id)
+                .order_by(TodoDB.created_at.desc())
+            )
             todos = result.scalars().all()
             return [Todo.model_validate(todo) for todo in todos]
     except SQLAlchemyError as e:
@@ -89,13 +105,56 @@ async def get_todos():
         )
 
 
+@app.get("/todos/completed", response_model=List[Todo])
+async def get_completed_todos(current_user: AuthUser = Depends(get_current_user)):
+    """Get all completed todos for the current user"""
+    try:
+        async with db.session() as session:
+            result = await session.execute(
+                select(TodoDB)
+                .where(TodoDB.completed == True, TodoDB.user_id == current_user.id)
+                .order_by(TodoDB.updated_at.desc())
+            )
+            todos = result.scalars().all()
+            return [Todo.model_validate(todo) for todo in todos]
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_completed_todos: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve completed todos"
+        )
+
+
+@app.get("/todos/active", response_model=List[Todo])
+async def get_active_todos(current_user: AuthUser = Depends(get_current_user)):
+    """Get all active (incomplete) todos for the current user"""
+    try:
+        async with db.session() as session:
+            result = await session.execute(
+                select(TodoDB)
+                .where(TodoDB.completed == False, TodoDB.user_id == current_user.id)
+                .order_by(TodoDB.created_at.desc())
+            )
+            todos = result.scalars().all()
+            return [Todo.model_validate(todo) for todo in todos]
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_active_todos: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve active todos"
+        )
+
+
 @app.get("/todos/{todo_id}", response_model=Todo)
-async def get_todo(todo_id: int):
-    """Get a specific todo by ID"""
+async def get_todo(todo_id: int, current_user: AuthUser = Depends(get_current_user)):
+    """Get a specific todo by ID for the current user"""
     validate_todo_id(todo_id)
     try:
         async with db.session() as session:
-            result = await session.execute(select(TodoDB).where(TodoDB.id == todo_id))
+            result = await session.execute(
+                select(TodoDB)
+                .where(TodoDB.id == todo_id, TodoDB.user_id == current_user.id)
+            )
             todo = result.scalar_one_or_none()
             
             if not todo:
@@ -116,12 +175,13 @@ async def get_todo(todo_id: int):
 
 
 @app.post("/todos", response_model=Todo, status_code=status.HTTP_201_CREATED)
-async def create_todo(todo: TodoCreate):
-    """Create a new todo"""
+async def create_todo(todo: TodoCreate, current_user: AuthUser = Depends(get_current_user)):
+    """Create a new todo for the current user"""
     try:
         current_time = datetime.now()
         
         new_todo = TodoDB(
+            user_id=current_user.id,
             title=todo.title,
             description=todo.description,
             completed=todo.completed,
@@ -132,7 +192,7 @@ async def create_todo(todo: TodoCreate):
             session.add(new_todo)
             await session.commit()
             await session.refresh(new_todo)
-            logger.info(f"Created todo with id: {new_todo.id}")
+            logger.info(f"Created todo with id: {new_todo.id} for user: {current_user.id}")
             
             return Todo.model_validate(new_todo)
             
@@ -151,14 +211,16 @@ async def create_todo(todo: TodoCreate):
 
 
 @app.put("/todos/{todo_id}", response_model=Todo)
-async def update_todo(todo_id: int, todo_update: TodoUpdate):
-    """Update an existing todo"""
+async def update_todo(todo_id: int, todo_update: TodoUpdate, current_user: AuthUser = Depends(get_current_user)):
+    """Update an existing todo for the current user"""
     validate_todo_id(todo_id)
     try:
         async with db.session() as session:
             # Get existing todo with row lock to prevent race conditions
             result = await session.execute(
-                select(TodoDB).where(TodoDB.id == todo_id).with_for_update()
+                select(TodoDB)
+                .where(TodoDB.id == todo_id, TodoDB.user_id == current_user.id)
+                .with_for_update()
             )
             todo = result.scalar_one_or_none()
             
@@ -173,7 +235,7 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate):
             
             await session.commit()
             await session.refresh(todo)
-            logger.info(f"Updated todo with id: {todo_id}")
+            logger.info(f"Updated todo with id: {todo_id} for user: {current_user.id}")
             
             return Todo.model_validate(todo)
             
@@ -194,13 +256,15 @@ async def update_todo(todo_id: int, todo_update: TodoUpdate):
 
 
 @app.delete("/todos/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_todo(todo_id: int):
-    """Delete a todo"""
+async def delete_todo(todo_id: int, current_user: AuthUser = Depends(get_current_user)):
+    """Delete a todo for the current user"""
     validate_todo_id(todo_id)
     try:
         async with db.session() as session:
             result = await session.execute(
-                select(TodoDB).where(TodoDB.id == todo_id).with_for_update()
+                select(TodoDB)
+                .where(TodoDB.id == todo_id, TodoDB.user_id == current_user.id)
+                .with_for_update()
             )
             todo = result.scalar_one_or_none()
             
@@ -212,7 +276,7 @@ async def delete_todo(todo_id: int):
             
             await session.delete(todo)
             await session.commit()
-            logger.info(f"Deleted todo with id: {todo_id}")
+            logger.info(f"Deleted todo with id: {todo_id} for user: {current_user.id}")
             
             return None
             
@@ -223,42 +287,6 @@ async def delete_todo(todo_id: int):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete todo"
-        )
-
-
-@app.get("/todos/completed", response_model=List[Todo])
-async def get_completed_todos():
-    """Get all completed todos"""
-    try:
-        async with db.session() as session:
-            result = await session.execute(
-                select(TodoDB).where(TodoDB.completed == True).order_by(TodoDB.updated_at.desc())
-            )
-            todos = result.scalars().all()
-            return [Todo.model_validate(todo) for todo in todos]
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_completed_todos: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve completed todos"
-        )
-
-
-@app.get("/todos/active", response_model=List[Todo])
-async def get_active_todos():
-    """Get all active (incomplete) todos"""
-    try:
-        async with db.session() as session:
-            result = await session.execute(
-                select(TodoDB).where(TodoDB.completed == False).order_by(TodoDB.created_at.desc())
-            )
-            todos = result.scalars().all()
-            return [Todo.model_validate(todo) for todo in todos]
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_active_todos: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve active todos"
         )
 
 

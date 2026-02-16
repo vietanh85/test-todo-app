@@ -3,24 +3,27 @@
 ## Architecture Diagram (Logical)
 
 ```text
-[ Browser / Mobile ] <---> [ React SPA ] <---HTTPS/WSS---> [ SORA Backend (FastAPI) ]
-                                                                    |
-                                                                    +---> [ SQLite/PostgreSQL ]
-                                                                    |
-                                                                    +---> [ External APIs ]
-                                                                            - Google/MS Calendar
-                                                                            - Slack/Teams
-                                                                            - Weather API
-                                                                            - Maps/Traffic API
+[ Browser ] <---> [ React Frontend ] <---HTTP/JSON---> [ FastAPI Backend ] <---> [ SQLite DB ]
+      ^                  |      ^                              ^
+      |                  |      |                              |
+      +--- User Input ---+      +--- Bearer Token (JWT) -------+
+                                |
+                        [ Identity Provider ]
+                        (Google/GitHub/Auth0)
 ```
 
 ## Data Flow Diagram (SORA Rituals)
 
-1. **Morning Briefing Flow**:
-   - Backend Cron triggers at 8:30 AM.
-   - Backend fetches Calendar, Weather, and Traffic data.
-   - Backend pushes notification to Frontend via WebSocket/SSE.
-   - Frontend displays `BriefingCard` on Dashboard.
+0. **Authentication**:
+   - User logs in via IdP.
+   - Frontend receives and stores Access Token.
+
+1. **Initialization**:
+   - Browser loads React application.
+   - `useAuth` checks login status.
+   - `useTodos` hook triggers `GET /todos` with `Authorization: Bearer <token>`.
+   - Backend validates JWT, extracts `user_id`, queries SQLite for user-specific todos.
+   - React renders the list.
 
 2. **Focus Mode Workflow**:
    - Frontend `useFocusStore` monitors calendar gaps (calculated by backend).
