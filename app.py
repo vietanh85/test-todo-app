@@ -4,9 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from sqlalchemy import select, delete, update
 from sqlalchemy.exc import SQLAlchemyError
-from models import Todo, TodoCreate, TodoUpdate, User
-from database import db, TodoDB, UserDB
-from auth import get_current_user, AuthUser
+from models import Todo, TodoCreate, TodoUpdate, User, AuthUser
+from database import db, TodoDB
+from auth import get_current_user
 import logging
 from contextlib import asynccontextmanager
 import os
@@ -74,36 +74,9 @@ async def root():
     }
 
 
-async def sync_user(user: AuthUser):
-    """Sync user info with database"""
-    try:
-        async with db.session() as session:
-            result = await session.execute(select(UserDB).where(UserDB.id == user.id))
-            db_user = result.scalar_one_or_none()
-            
-            if not db_user:
-                db_user = UserDB(
-                    id=user.id,
-                    email=user.email,
-                    name=user.name,
-                    last_login=datetime.now()
-                )
-                session.add(db_user)
-            else:
-                db_user.email = user.email
-                db_user.name = user.name
-                db_user.last_login = datetime.now()
-            
-            await session.commit()
-    except Exception as e:
-        logger.error(f"Failed to sync user {user.id}: {e}")
-        # We don't raise here to not block the request if user sync fails
-
-
 @app.get("/auth/user", response_model=User)
 async def get_user_info(current_user: AuthUser = Depends(get_current_user)):
     """Get current user information"""
-    await sync_user(current_user)
     return User(
         id=current_user.id,
         email=current_user.email,
@@ -129,6 +102,46 @@ async def get_todos(current_user: AuthUser = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve todos"
+        )
+
+
+@app.get("/todos/completed", response_model=List[Todo])
+async def get_completed_todos(current_user: AuthUser = Depends(get_current_user)):
+    """Get all completed todos for the current user"""
+    try:
+        async with db.session() as session:
+            result = await session.execute(
+                select(TodoDB)
+                .where(TodoDB.completed == True, TodoDB.user_id == current_user.id)
+                .order_by(TodoDB.updated_at.desc())
+            )
+            todos = result.scalars().all()
+            return [Todo.model_validate(todo) for todo in todos]
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_completed_todos: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve completed todos"
+        )
+
+
+@app.get("/todos/active", response_model=List[Todo])
+async def get_active_todos(current_user: AuthUser = Depends(get_current_user)):
+    """Get all active (incomplete) todos for the current user"""
+    try:
+        async with db.session() as session:
+            result = await session.execute(
+                select(TodoDB)
+                .where(TodoDB.completed == False, TodoDB.user_id == current_user.id)
+                .order_by(TodoDB.created_at.desc())
+            )
+            todos = result.scalars().all()
+            return [Todo.model_validate(todo) for todo in todos]
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_active_todos: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve active todos"
         )
 
 
@@ -274,46 +287,6 @@ async def delete_todo(todo_id: int, current_user: AuthUser = Depends(get_current
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete todo"
-        )
-
-
-@app.get("/todos/completed", response_model=List[Todo])
-async def get_completed_todos(current_user: AuthUser = Depends(get_current_user)):
-    """Get all completed todos for the current user"""
-    try:
-        async with db.session() as session:
-            result = await session.execute(
-                select(TodoDB)
-                .where(TodoDB.completed == True, TodoDB.user_id == current_user.id)
-                .order_by(TodoDB.updated_at.desc())
-            )
-            todos = result.scalars().all()
-            return [Todo.model_validate(todo) for todo in todos]
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_completed_todos: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve completed todos"
-        )
-
-
-@app.get("/todos/active", response_model=List[Todo])
-async def get_active_todos(current_user: AuthUser = Depends(get_current_user)):
-    """Get all active (incomplete) todos for the current user"""
-    try:
-        async with db.session() as session:
-            result = await session.execute(
-                select(TodoDB)
-                .where(TodoDB.completed == False, TodoDB.user_id == current_user.id)
-                .order_by(TodoDB.created_at.desc())
-            )
-            todos = result.scalars().all()
-            return [Todo.model_validate(todo) for todo in todos]
-    except SQLAlchemyError as e:
-        logger.error(f"Database error in get_active_todos: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve active todos"
         )
 
 
