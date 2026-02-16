@@ -4,17 +4,25 @@
 
 ```text
 [ Browser ] <---> [ React Frontend ] <---HTTP/JSON---> [ FastAPI Backend ] <---> [ SQLite DB ]
-      ^                  |                                     ^
-      |                  |                                     |
-      +--- User Input ---+                                     +--- SQL Queries ---+
+      ^                  |      ^                              ^
+      |                  |      |                              |
+      +--- User Input ---+      +--- Bearer Token (JWT) -------+
+                                |
+                        [ Identity Provider ]
+                        (Google/GitHub/Auth0)
 ```
 
 ## Data Flow Diagram
 
+0. **Authentication**:
+   - User logs in via IdP.
+   - Frontend receives and stores Access Token.
+
 1. **Initialization**:
    - Browser loads React application.
-   - `useTodos` hook triggers `GET /todos`.
-   - Backend queries SQLite and returns JSON list.
+   - `useAuth` checks login status.
+   - `useTodos` hook triggers `GET /todos` with `Authorization: Bearer <token>`.
+   - Backend validates JWT, extracts `user_id`, queries SQLite for user-specific todos.
    - React renders the list.
 
 2. **Creating a Todo**:
