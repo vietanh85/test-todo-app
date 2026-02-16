@@ -1,9 +1,14 @@
 import os
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, text, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from datetime import datetime
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -19,19 +24,24 @@ class UserDB(Base):
     id = Column(String(100), primary_key=True, index=True)  # sub claim from JWT
     email = Column(String(255), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=True)
+    picture = Column(String(500), nullable=True)
     last_login = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    todos = relationship("TodoDB", back_populates="user", cascade="all, delete-orphan")
 
 
 class TodoDB(Base):
     __tablename__ = "todos"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(100), index=True, nullable=False)
+    user_id = Column(String(100), ForeignKey("users.id"), index=True, nullable=False)
     title = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)
     completed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    user = relationship("UserDB", back_populates="todos")
 
 
 class Database:

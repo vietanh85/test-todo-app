@@ -62,13 +62,15 @@ curl -X POST "http://localhost:8000/todos" \
 
 ### Get all todos
 ```bash
-curl "http://localhost:8000/todos"
+curl "http://localhost:8000/todos" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### Update a todo
 ```bash
 curl -X PUT "http://localhost:8000/todos/1" \
      -H "Content-Type: application/json" \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
      -d '{"completed": true}'
 ```
 
