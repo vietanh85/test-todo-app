@@ -1,56 +1,64 @@
-# API Contract: Frontend-Backend Interaction
+# API Contract: SORA Frontend-Backend Interaction
 
 ## Base URL
-Default: `http://localhost:8000`
+Default: `http://localhost:8000/api/v1`
 
-## Endpoints utilized by Frontend
+## Endpoints
 
-### 1. GET /todos
-- **Purpose**: Fetch all todo items.
-- **Response Schema**:
+### 1. Briefing (FR-001)
+#### GET /briefing
+- **Purpose**: Get the morning briefing data.
+- **Response**:
   ```json
-  [
-    {
-      "id": "integer",
-      "title": "string",
-      "description": "string | null",
-      "completed": "boolean",
-      "created_at": "ISO-8601 string",
-      "updated_at": "ISO-8601 string"
+  {
+    "date": "2023-10-27",
+    "weather": {
+      "temp": 18,
+      "condition": "Cloudy",
+      "advice": "Light jacket recommended."
+    },
+    "commute": {
+      "estimated_time_mins": 45,
+      "status": "Heavier than usual traffic on I-95."
+    },
+    "first_meeting": {
+      "time": "09:30 AM",
+      "title": "Project Sync"
     }
-  ]
-  ```
-
-### 2. POST /todos
-- **Purpose**: Create a new todo.
-- **Payload**:
-  ```json
-  {
-    "title": "string (min 1, max 200)",
-    "description": "string | null (max 500)",
-    "completed": "boolean (optional, default false)"
-  }
-  ```
-- **Success Response**: 201 Created
-
-### 3. PUT /todos/{id}
-- **Purpose**: Update an existing todo (toggle status or edit content).
-- **Payload**:
-  ```json
-  {
-    "title": "string (optional)",
-    "description": "string (optional)",
-    "completed": "boolean (optional)"
   }
   ```
 
-### 4. DELETE /todos/{id}
-- **Purpose**: Delete a todo.
-- **Success Response**: 204 No Content
+### 2. Focus Mode (FR-002)
+#### POST /focus/start
+- **Payload**: `{"duration_mins": 90}`
+#### POST /focus/stop
+- **Payload**: `{}`
+#### GET /focus/status
+- **Response**: `{"active": true, "remaining_mins": 42}`
 
-### 5. GET /health
-- **Purpose**: Verify backend availability on frontend startup.
+### 3. Lunch Group (FR-003)
+#### GET /lunch/options
+#### POST /lunch/vote
+- **Payload**: `{"option_id": "uuid"}`
 
-## Security Considerations
-- **CORS**: Backend must allow requests from the frontend origin (e.g., `http://localhost:5173`).
-- **Validation**: Frontend must mirror backend validation (e.g., title length) to provide immediate feedback.
+### 4. Clean Slate (FR-004)
+#### GET /tasks/suggestions
+- **Purpose**: Get suggested tasks for tomorrow.
+#### POST /wrap-up/log
+- **Payload**:
+  ```json
+  {
+    "achievements": ["Completed API contract", "Fixed bug in auth"],
+    "next_day_priorities": ["id1", "id2", "id3"]
+  }
+  ```
+
+## WebSocket Events
+Frontend listens on `ws://localhost:8000/ws`:
+- `BRIEFING_READY`: Trigger a fetch of `/briefing`.
+- `FOCUS_SUGGESTION`: Suggest entering focus mode.
+- `LUNCH_POLL_STARTED`: Show lunch voting UI.
+
+## Legacy Endpoints (Todos)
+The `/todos` endpoints are maintained for individual task management within the "Clean Slate" and "Daily Log" features.
+

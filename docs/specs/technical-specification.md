@@ -1,4 +1,4 @@
-# Technical Specification: Todo Frontend
+# Technical Specification: SORA Frontend
 
 ## 1. Overview
 This document outlines the technical implementation details for the Todo application frontend.
@@ -42,6 +42,5 @@ The application will be composed of the following main components:
 - Inline validation errors for the "Add Todo" form.
 
 ## 6. Responsive Design
-- Mobile-first approach.
-- Single column layout for mobile.
-- Centered container with max-width for desktop.
+- **Desktop**: Primary interface with sidebar.
+- **Mobile**: Simplified list view with floating action button for quick achievement logging.
