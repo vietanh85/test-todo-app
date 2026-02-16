@@ -1,50 +1,58 @@
-# System Design: Todo Application
+# System Design: SORA (Smart Office Routine Assistant)
 
 ## Architecture Diagram (Logical)
 
 ```text
-[ Browser ] <---> [ React Frontend ] <---HTTP/JSON---> [ FastAPI Backend ] <---> [ SQLite DB ]
-      ^                  |                                     ^
-      |                  |                                     |
-      +--- User Input ---+                                     +--- SQL Queries ---+
+[ Browser / Mobile ] <---> [ React SPA ] <---HTTPS/WSS---> [ SORA Backend (FastAPI) ]
+                                                                    |
+                                                                    +---> [ SQLite/PostgreSQL ]
+                                                                    |
+                                                                    +---> [ External APIs ]
+                                                                            - Google/MS Calendar
+                                                                            - Slack/Teams
+                                                                            - Weather API
+                                                                            - Maps/Traffic API
 ```
 
-## Data Flow Diagram
+## Data Flow Diagram (SORA Rituals)
 
-1. **Initialization**:
-   - Browser loads React application.
-   - `useTodos` hook triggers `GET /todos`.
-   - Backend queries SQLite and returns JSON list.
-   - React renders the list.
+1. **Morning Briefing Flow**:
+   - Backend Cron triggers at 8:30 AM.
+   - Backend fetches Calendar, Weather, and Traffic data.
+   - Backend pushes notification to Frontend via WebSocket/SSE.
+   - Frontend displays `BriefingCard` on Dashboard.
 
-2. **Creating a Todo**:
-   - User types in `AddTodoForm` and submits.
-   - Frontend validates input via Zod.
-   - `useCreateTodo` mutation sends `POST /todos`.
-   - Backend persists to DB and returns the new object.
-   - Frontend cache is invalidated; list re-fetches.
+2. **Focus Mode Workflow**:
+   - Frontend `useFocusStore` monitors calendar gaps (calculated by backend).
+   - User clicks "Enter Focus Mode".
+   - Frontend sends POST to `/api/v1/focus/start`.
+   - Backend updates Slack status via Webhook.
+   - Frontend starts countdown timer.
 
-3. **Updating a Todo**:
-   - User clicks checkbox on `TodoItem`.
-   - Frontend optimistic update (optional) or immediate mutation.
-   - `PUT /todos/{id}` sent with `completed: !current_status`.
-   - Backend updates DB and returns updated object.
+3. **Evening Wrap-up (Clean Slate)**:
+   - Frontend detects 4:45 PM or receives push.
+   - Frontend switches view to `RitualWizard`.
+   - User inputs achievements.
+   - Backend persists "Wins" and generates "Top 3" for tomorrow.
 
-## Component Interconnection
+## Component Interconnection (Frontend)
 
 ```text
 App
- └── QueryClientProvider
-      └── Layout
-           ├── Header
-           └── Dashboard
-                ├── Stats (Aggregates data from useTodos)
-                ├── AddTodoForm (Uses useCreateTodo)
-                └── TodoList
-                     └── TodoItem (Uses useUpdateTodo, useDeleteTodo)
+ ├── NotificationProvider (Toast & Push)
+ └── Layout
+      ├── Sidebar (Nav: Home, Stats, Focus, Team)
+      └── MainContent
+           ├── Dashboard (Widgets: Briefing, focus-session)
+           └── RitualOverlay (Modals/Wizards for Morning/Evening)
 ```
 
+## Security & Privacy
+- **OAuth2**: All external integrations use user-specific OAuth tokens.
+- **Data Minimization**: Backend only processes calendar metadata; no sensitive body content is stored.
+- **Local Storage**: Preferences and UI state stored in browser for speed.
+
 ## Deployment Strategy
-- **Frontend**: Built as static files (SPA) and served via Nginx or hosted on Vercel/Netlify.
-- **Backend**: Containerized with Docker, running Uvicorn.
-- **Database**: SQLite file persisted via volume mount.
+- **Frontend**: Vite build hosted on Vercel/Netlify for global CDN performance.
+- **Backend**: AWS ECS (Fargate) for scalable FastAPI service.
+- **Real-time**: AWS AppSync or dedicated WebSocket server (Socket.io) if needed for scaling team lunch votes.
