@@ -23,8 +23,7 @@ The application will be composed of the following main components:
 - `useDeleteTodo()`: Mutation to remove a todo.
 
 ### Authentication State
-- `useAuth()`: Hook from OIDC provider to get authentication status, user profile, and tokens.
-- Protected Routes: Higher-order components or wrapper components to prevent access to the dashboard for unauthenticated users.
+- Authentication is currently disabled. All routes are public and accessible without a login.
 
 ### Client State
 - UI state (e.g., current filter, theme) will be managed using React `useState` or a lightweight store like `Zustand` if complexity increases.

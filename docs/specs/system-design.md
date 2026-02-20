@@ -6,23 +6,19 @@
 [ Browser ] <---> [ React Frontend ] <---HTTP/JSON---> [ FastAPI Backend ] <---> [ SQLite DB ]
       ^                  |      ^                              ^
       |                  |      |                              |
-      +--- User Input ---+      +--- Bearer Token (JWT) -------+
-                                |
-                        [ Identity Provider ]
-                        (Google/GitHub/Auth0)
+      +--- User Input ---+      +------------------------------+
 ```
 
 ## Data Flow Diagram (SORA Rituals)
 
 0. **Authentication**:
-   - User logs in via IdP.
-   - Frontend receives and stores Access Token.
+   - Authentication is disabled for this version of the application.
+   - All requests are treated as coming from a default 'anonymous-user'.
 
 1. **Initialization**:
    - Browser loads React application.
-   - `useAuth` checks login status.
-   - `useTodos` hook triggers `GET /todos` with `Authorization: Bearer <token>`.
-   - Backend validates JWT, extracts `user_id`, queries SQLite for user-specific todos.
+   - `useTodos` hook triggers `GET /todos`.
+   - Backend queries SQLite for todos associated with the default user ID.
    - React renders the list.
 
 2. **Focus Mode Workflow**:
