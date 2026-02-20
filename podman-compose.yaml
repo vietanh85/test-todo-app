@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: todo-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app:Z
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - RELOAD=true
+      - DATABASE_URL=sqlite+aiosqlite:///./todos.db
+    env_file:
+      - .env.example
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: todo-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app:Z
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
