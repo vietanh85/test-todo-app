@@ -129,3 +129,5 @@ todos.db
 .turbo/
 *.tsbuildinfo
 
+podman-compose.preview.vibeflow.yaml
+frontend/vite.preview.config.ts
