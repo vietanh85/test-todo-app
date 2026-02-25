@@ -131,3 +131,5 @@ todos.db
 
 podman-compose.preview.vibeflow.yaml
 frontend/vite.preview.config.ts
+podman-compose.preview.vibeflow.yaml
+frontend/vite.preview.config.ts
