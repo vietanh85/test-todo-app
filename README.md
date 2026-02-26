@@ -1,4 +1,4 @@
-# SORA (Smart Office Routine Assistant)
+# SORA - Smart Office Routine Assistant (Updated)
 
 SORA is a comprehensive application designed to help office workers manage their daily routines, protect focus time, and reduce cognitive load. It features a robust FastAPI backend and a modern React frontend.
 
