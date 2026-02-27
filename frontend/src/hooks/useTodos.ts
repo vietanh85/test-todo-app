@@ -28,9 +28,11 @@ export const useUpdateTodo = () => {
       const previousTodos = queryClient.getQueryData<Todo[]>(['todos']);
 
       queryClient.setQueryData<Todo[]>(['todos'], (old) =>
-        old?.map((todo) =>
-          todo.id === updatedTodo.id ? { ...todo, ...updatedTodo } : todo
-        )
+        Array.isArray(old)
+          ? old.map((todo) =>
+              todo.id === updatedTodo.id ? { ...todo, ...updatedTodo } : todo
+            )
+          : old
       );
 
       return { previousTodos };
@@ -53,7 +55,7 @@ export const useDeleteTodo = () => {
       const previousTodos = queryClient.getQueryData<Todo[]>(['todos']);
 
       queryClient.setQueryData<Todo[]>(['todos'], (old) =>
-        old?.filter((todo) => todo.id !== id)
+        Array.isArray(old) ? old.filter((todo) => todo.id !== id) : old
       );
 
       return { previousTodos };
