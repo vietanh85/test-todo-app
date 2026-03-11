@@ -41,17 +41,9 @@ The API will be available at `http://localhost:8000`
 
 ## Authentication
 
-This API uses Single Sign-On (SSO) via OpenID Connect (OIDC). All protected endpoints require an `Authorization: Bearer <JWT>` header.
+Authentication is currently disabled in the SORA MVP as per [ADR-002: Removal of SSO](./docs/specs/ADR-002-Remove-SSO.md). All requests are treated as a default 'anonymous-user'.
 
-### Configuration
-
-Copy `.env.example` to `.env` and configure your OIDC provider:
-
-```env
-OIDC_ISSUER=https://your-idp.com
-OIDC_AUDIENCE=your-client-id
-JWKS_URL=https://your-idp.com/.well-known/jwks.json
-```
+For local development, no OIDC configuration is required.
 
 ## API Endpoints
 
@@ -104,7 +96,9 @@ The frontend will be available at `http://localhost:5173`.
 
 Detailed specifications can be found in the `docs/specs` directory:
 - [System Design](./docs/specs/system-design.md)
+- [Data Architecture](./docs/specs/data-architecture.md)
 - [Frontend Architecture](./docs/specs/frontend-architecture.md)
+- [Frontend Technical Specification](./docs/specs/frontend-technical-specification.md)
+- [Backend Technical Specification](./docs/specs/backend-technical-specification.md)
 - [API Contract](./docs/specs/api-contract.md)
-- [Technical Specification](./docs/specs/technical-specification.md)
 - [User Stories](./docs/specs/UserStories_SORA.md)

@@ -33,5 +33,5 @@ This is the React-based frontend for SORA, designed to help office workers manag
 ## Architecture
 See detailed documentation in `/docs/specs/`:
 - [Frontend Architecture](../docs/specs/frontend-architecture.md)
-- [Technical Specification](../docs/specs/technical-specification.md)
+- [Frontend Technical Specification](../docs/specs/frontend-technical-specification.md)
 - [API Contract](../docs/specs/api-contract.md)

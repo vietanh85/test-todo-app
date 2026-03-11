@@ -1,57 +1,120 @@
-# System Design: SORA (Smart Office Routine Assistant)
+# SORA (Smart Office Routine Assistant) - Architecture Design
 
-## Architecture Diagram (Logical)
+## 1. Overview
+The Smart Office Routine Assistant (SORA) is a productivity platform designed to reduce cognitive load for office workers. It automates daily transitions (morning briefing, evening wrap-up), protects deep work intervals by managing communication status, and facilitates team coordination (lunch orchestration).
 
-```text
-[ Browser ] <---> [ React Frontend ] <---HTTP/JSON---> [ FastAPI Backend ] <---> [ SQLite DB ]
-      ^                  |      ^                              ^
-      |                  |      |                              |
-      +--- User Input ---+      +------------------------------+
+## 2. Requirements (Functional & Non-Functional)
+
+### 2.1 Functional Requirements
+- **FR-001 (Morning Briefing):** Delivery of summary data including first meeting, weather, and commute at 8:30 AM.
+- **FR-002 (Deep Work Shield):** Automated detection of calendar gaps and "Focus Mode" activation (Slack/Teams status update).
+- **FR-003 (Lunch Orchestrator):** Group polling for meal preferences and suggestions.
+- **FR-004 (Clean Slate Wrap-up):** Achievement logging and prioritized task generation for the next day.
+
+### 2.2 Non-Functional Requirements
+- **NFR-001 (Privacy):** No storage of sensitive meeting content; metadata only.
+- **NFR-002 (Latency):** < 2s delivery for time-sensitive notifications.
+- **NFR-003 (Integrations):** Seamless connectivity with Microsoft Outlook, Google Calendar, and Slack.
+- **NFR-004 (Scalability):** Support for up to 10,000 concurrent users with local-first data caching.
+
+## 3. Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph "Client Layer"
+        User["User (Browser/Mobile)"]
+        Frontend["React SPA (Vite)"]
+    end
+
+    subgraph "API Layer"
+        Backend["FastAPI Server"]
+        WS["WebSocket Server"]
+    end
+
+    subgraph "Persistence Layer"
+        DB[("SQLite/PostgreSQL")]
+        Redis[("Redis Cache")]
+    end
+
+    subgraph "External Integrations"
+        Calendar["Calendar APIs (Google/Outlook)"]
+        Slack["Slack Webhooks/API"]
+        Weather["Weather/Traffic Services"]
+    end
+
+    User <--> Frontend
+    Frontend -- "REST API (HTTP/S)" --> Backend
+    Frontend -- "Real-time Events" --> WS
+    Backend <--> DB
+    Backend <--> Redis
+    Backend -- "OAuth2/API" --> Calendar
+    Backend -- "Webhooks" --> Slack
+    Backend -- "Fetch" --> Weather
 ```
 
-## Data Flow Diagram (SORA Rituals)
+## 4. Component Design
 
-0. **Authentication**:
-   - Authentication is disabled for this version of the application.
-   - All requests are treated as coming from a default 'anonymous-user'.
+### 4.1 Frontend Components
+- **Dashboard Widget Engine:** Pluggable widgets for Briefing, Focus Mode, and Lunch Polls.
+- **Ritual Wizard:** A multi-step form for Morning/Evening routines.
+- **Focus Store (Zustand):** Manages local timer state and UI blocking.
+- **API Client (TanStack Query):** Handles server state, caching, and optimistic updates.
 
-1. **Initialization**:
-   - Browser loads React application.
-   - `useTodos` hook triggers `GET /todos`.
-   - Backend queries SQLite for todos associated with the default user ID.
-   - React renders the list.
+### 4.2 Backend Services
+- **Briefing Engine:** Aggregates data from Weather, Traffic, and Calendar services.
+- **Focus Manager:** Monitors calendar gaps and triggers status updates.
+- **Notification Service:** Dispatches WebSocket events and push notifications.
+- **Task Prioritization Logic:** Analyzes "Wins" and pending todos to suggest tomorrow's "Top 3".
 
-2. **Focus Mode Workflow**:
-   - Frontend `useFocusStore` monitors calendar gaps (calculated by backend).
-   - User clicks "Enter Focus Mode".
-   - Frontend sends POST to `/api/v1/focus/start`.
-   - Backend updates Slack status via Webhook.
-   - Frontend starts countdown timer.
+## 5. Data Flow
 
-3. **Evening Wrap-up (Clean Slate)**:
-   - Frontend detects 4:45 PM or receives push.
-   - Frontend switches view to `RitualWizard`.
-   - User inputs achievements.
-   - Backend persists "Wins" and generates "Top 3" for tomorrow.
+### 5.1 Focus Mode Activation
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant S as Slack API
 
-## Component Interconnection (Frontend)
-
-```text
-App
- ├── NotificationProvider (Toast & Push)
- └── Layout
-      ├── Sidebar (Nav: Home, Stats, Focus, Team)
-      └── MainContent
-           ├── Dashboard (Widgets: Briefing, focus-session)
-           └── RitualOverlay (Modals/Wizards for Morning/Evening)
+    U->>F: Clicks "Enter Focus Mode"
+    F->>B: POST /api/v1/focus/start {duration: 90}
+    B->>S: Update Status: "In Focus" (Set Do Not Disturb)
+    B-->>F: 200 OK (Remaining Time)
+    F->>F: Start local countdown timer
+    F->>U: Show Focus UI Overlay
 ```
 
-## Security & Privacy
-- **OAuth2**: All external integrations use user-specific OAuth tokens.
-- **Data Minimization**: Backend only processes calendar metadata; no sensitive body content is stored.
-- **Local Storage**: Preferences and UI state stored in browser for speed.
+## 6. API Contracts
+Managed in detail in [api-contract.md](./api-contract.md). Primary patterns:
+- **REST:** JSON-based resources for todos, briefings, and logs.
+- **WebSocket:** Event-driven updates for `BRIEFING_READY` and `LUNCH_POLL_STARTED`.
 
-## Deployment Strategy
-- **Frontend**: Vite build hosted on Vercel/Netlify for global CDN performance.
-- **Backend**: AWS ECS (Fargate) for scalable FastAPI service.
-- **Real-time**: AWS AppSync or dedicated WebSocket server (Socket.io) if needed for scaling team lunch votes.
+## 7. Security Architecture
+- **Authentication:** Currently disabled for MVP; planned migration to OAuth2/OIDC.
+- **Authorization:** Token-based access to external integrations (Calendar/Slack).
+- **Data Protection:** Encryption at rest for user metadata; PII minimization.
+
+## 8. Scalability & Performance
+- **Caching:** Weather and traffic data cached in Redis (TTL: 15-30 mins).
+- **Asynchronous Processing:** Long-running briefing generations handled via background tasks.
+- **Static Content:** Frontend assets served via global CDN.
+
+## 9. Deployment Architecture
+- **Environment:** Containerized deployment using Docker.
+- **Infrastructure:**
+    - Frontend: Vercel/Netlify.
+    - Backend: AWS Fargate (ECS).
+    - Database: RDS for PostgreSQL (Production) / SQLite (Development).
+
+## 10. Monitoring & Alerting
+- **Observability:** Structured logging (JSON) and tracing.
+- **Metrics:** Request latency, error rates, and integration uptime.
+- **Alerting:** Automated triggers for failing external API integrations.
+
+## 11. Risks & Mitigations
+- **Risk:** External API Rate Limiting (Calendar/Slack).
+    - **Mitigation:** Implement exponential backoff and request batching.
+- **Risk:** Stale Commute Data.
+    - **Mitigation:** Real-time fetch with strict timeouts and fallback to "last known good" status.
+- **Risk:** Notification Fatigue.
+    - **Mitigation:** User-configurable threshold for "Focus Mode" suggestions.
