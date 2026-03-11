@@ -8,7 +8,7 @@ The SORA backend is a Python-based FastAPI service that acts as the orchestratio
 - **ORM:** SQLAlchemy (Async).
 - **Database:** SQLite (Dev) / PostgreSQL (Prod).
 - **Task Queue:** Celery with Redis (for asynchronous briefing generation).
-- **Authentication:** (Planned) OAuth2 with JWT validation. Currently hardcoded to `anonymous-user` per SSO removal policy.
+- **Authentication:** None (No-Auth mode). Operates with a default `anonymous-user` identity. Security is managed at the infrastructure layer (VPN/Reverse Proxy).
 - **Communication:** REST API for CRUD; WebSockets for real-time notifications.
 
 ## 3. Core Modules

@@ -1,7 +1,7 @@
-# Testing Strategy and Architecture
+# Testing Strategy and Architecture: SORA
 
 ## 1. Overview
-This document defines the testing strategy for the Todo application, ensuring high code quality, reliability, and maintainability across both the backend (Python) and frontend (TypeScript/React).
+This document defines the testing strategy for SORA (Smart Office Routine Assistant), ensuring high code quality, reliability, and maintainability across both the backend (Python) and frontend (TypeScript/React).
 
 ## 2. Testing Levels
 

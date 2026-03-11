@@ -90,9 +90,10 @@ Managed in detail in [api-contract.md](./api-contract.md). Primary patterns:
 - **WebSocket:** Event-driven updates for `BRIEFING_READY` and `LUNCH_POLL_STARTED`.
 
 ## 7. Security Architecture
-- **Authentication:** Currently disabled for MVP; planned migration to OAuth2/OIDC.
-- **Authorization:** Token-based access to external integrations (Calendar/Slack).
+- **Authentication:** Removed in favor of a "no-auth" / single-user model for MVP (see [ADR-002](./ADR-002-Remove-SSO.md)).
+- **Authorization:** Access to external integrations (Calendar/Slack) uses individual user-provided tokens stored locally.
 - **Data Protection:** Encryption at rest for user metadata; PII minimization.
+- **Environment:** Recommendation to deploy behind an authenticating reverse proxy (e.g., Authelia, Nginx Basic Auth) for multi-user or public access.
 
 ## 8. Scalability & Performance
 - **Caching:** Weather and traffic data cached in Redis (TTL: 15-30 mins).

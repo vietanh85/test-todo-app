@@ -23,7 +23,7 @@ erDiagram
 #### `users`
 | Column | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| id | String(100) | PK | Unique ID (OIDC `sub`). |
+| id | String(100) | PK | Unique ID (defaults to 'anonymous-user'). |
 | email | String(255) | Unique, Indexed | Primary contact. |
 | name | String(255) | | Full display name. |
 | picture | String(500) | | URL to profile image. |
