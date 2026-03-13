@@ -14,7 +14,7 @@ services:
       - RELOAD=true
       - DATABASE_URL=sqlite+aiosqlite:///./todos.db
       - PREVIEW_MODE=true
-      - CORS_ORIGINS=https://c4a2c4ad-2e2b-4c99-b903-0de61b9c979a-5173.preview.vibeflow.demo.usee.ai,https://c4a2c4ad-2e2b-4c99-b903-0de61b9c979a-8000.preview.vibeflow.demo.usee.ai,https://vibeflow.demo.usee.ai
+      - CORS_ORIGINS=https://bb8de47e-877c-430c-ae68-9c46314ad717-5173.preview.vibeflow.demo.usee.ai,https://bb8de47e-877c-430c-ae68-9c46314ad717-8000.preview.vibeflow.demo.usee.ai,https://vibeflow.demo.usee.ai
     env_file:
       - .env.example
     command: sh -c "pip install --no-cache-dir -r requirements.txt && touch todos.db && chmod 666 todos.db && python main.py"
