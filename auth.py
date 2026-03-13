@@ -29,7 +29,7 @@ if OIDC_ISSUER:
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE")
 JWKS_URL = os.getenv("JWKS_URL")
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 class TokenValidator:
     """
@@ -254,6 +254,23 @@ async def get_current_user(token: HTTPAuthorizationCredentials = Depends(securit
     Raises:
         HTTPException: If authentication fails or is not configured.
     """
+    if os.getenv("PREVIEW_MODE") == "true" and not token:
+        user = AuthUser(
+            id="preview-user-id",
+            email="preview@example.com",
+            name="Preview User",
+            picture=""
+        )
+        await sync_user(user)
+        return user
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if not OIDC_ISSUER or not OIDC_AUDIENCE:
         logger.error("SSO environment variables (OIDC_ISSUER/OIDC_AUDIENCE) are not set")
         raise HTTPException(

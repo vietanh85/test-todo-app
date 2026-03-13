@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  backend:
+    image: python:3.11-slim
+    container_name: todo-backend-preview
+    network_mode: host
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - RELOAD=true
+      - DATABASE_URL=sqlite+aiosqlite:///./todos.db
+      - PREVIEW_MODE=true
+      - CORS_ORIGINS=https://c4a2c4ad-2e2b-4c99-b903-0de61b9c979a-5173.preview.vibeflow.demo.usee.ai,https://c4a2c4ad-2e2b-4c99-b903-0de61b9c979a-8000.preview.vibeflow.demo.usee.ai,https://vibeflow.demo.usee.ai
+    env_file:
+      - .env.example
+    command: sh -c "pip install --no-cache-dir -r requirements.txt && touch todos.db && chmod 666 todos.db && python main.py"
+
+  frontend:
+    image: node:20-slim
+    container_name: todo-frontend-preview
+    network_mode: host
+    volumes:
+      - ./frontend:/app
+    working_dir: /app
+    command: sh -c "npm install && npx vite build --config vite.preview.config.ts && npx vite preview --config vite.preview.config.ts"
+    environment:
+      - VITE_API_URL=/
+    depends_on:
+      - backend
